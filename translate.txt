@@ -1,0 +1,26 @@
+"Предсменная проверка", "first_checkup"
+"Послесменная проверка", "second_checkup"
+"Регистрация", "registration"
+"Сделать фото", "To make photo"
+"Введите ИИН", "Enter IIN"
+"Подтвердить", "Confirm"
+"Подтвердите ИИН", "Confirm your IIN"
+"Отлично", "Great"
+"Неправильно!", "Wrong!"
+"Положите палец на датчик отпечатка", "Place your finger on the fingerprint sensor"
+"Поместите голову в прямоугольник", "Place your head in a rectangle"
+"Температура", "Temperature"
+"Алкотест", "Breathalyzer"
+"Пульс", "Pulse"
+"Наркотест", "Drug Test"
+"Давление", "Pressure"
+"Жалобы", "Complaints", 
+"Подуйте в алкометр, "Blow into the breathalyzer"
+Должность, Job Title
+Организация, Organization
+Город, City
+водитель, Driver
+Организация 1, Organization 1
+Астана, Astana
+Наличие жалоб, Availability of complaints
+Выберите тип проверки, Select scan type

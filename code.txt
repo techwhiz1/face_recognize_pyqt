@@ -1,0 +1,107 @@
+import numpy as np
+import cv2
+import os
+import pickle
+from numpy import expand_dims
+from keras_facenet import FaceNet
+
+# Function to update the database from images in a folder
+def update_database_from_folder(folder_path, database_path):
+    facenet = FaceNet()
+    try:
+        with open(database_path, "rb") as f:
+            database = pickle.load(f)
+    except (FileNotFoundError, EOFError):
+        database = {}
+
+    for filename in os.listdir(folder_path):
+        if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+            img_path = os.path.join(folder_path, filename)
+            img = cv2.imread(img_path)
+            if img is None:
+                continue
+            img = cv2.resize(img, (160, 160))
+            img = img[..., ::-1]  # Convert BGR to RGB
+            img = np.asarray(img)
+            img = expand_dims(img, axis=0)
+            embedding = facenet.embeddings(img)
+            database[filename] = embedding
+
+    with open(database_path, "wb") as f:
+        pickle.dump(database, f)
+
+# Helper function to find the closest embedding in the database
+def find_closest_embedding(embedding, database):
+    min_dist = float('inf')
+    identity = None
+    for (name, db_emb) in database.items():
+        dist = np.linalg.norm(db_emb - embedding)
+        if dist < min_dist:
+            min_dist = dist
+            identity = name
+    confidence = max(0, 100 - (min_dist * 10))
+    if confidence > 91:  # Confidence threshold
+        return identity, confidence
+    else:
+        return "Unknown", confidence
+
+# Load or update database
+database_path = "data.pkl"
+faces_folder = "faces"
+update_database_from_folder(faces_folder, database_path)
+
+# Load the face embeddings database
+with open(database_path, "rb") as f:
+    database = pickle.load(f)
+
+# Initialize FaceNet and Haar Cascade
+MyFaceNet = FaceNet()
+HaarCascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+
+cap = cv2.VideoCapture(1)
+# Set camera resolution to 1440x1024
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1440)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1024)
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # Define the fixed recognition area (450x450) at the center of the frame
+    height, width = frame.shape[:2]
+    centerX, centerY = width // 2, height // 2
+    startX, startY = centerX - 225, centerY - 225
+    endX, endY = centerX + 225, centerY + 225
+    cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
+
+    # Crop to the recognition area
+    crop_frame = frame[startY:endY, startX:endX]
+
+    faces = HaarCascade.detectMultiScale(crop_frame, 1.1, 4)
+    for (x, y, w, h) in faces:
+        # Adjust face coordinates to match the original frame
+        x, y = x + startX, y + startY
+
+        # Check if the face size is at least 300x300
+        if w >= 300 and h >= 300:
+            face = frame[y:y + h, x:x + w]
+            face = cv2.resize(face, (160, 160))
+            face = face[..., ::-1]  # Convert BGR to RGB
+            face = np.asarray(face)
+            face = expand_dims(face, axis=0)
+
+            embedding = MyFaceNet.embeddings(face)
+            identity, confidence = find_closest_embedding(embedding, database)
+
+            text = f"{identity} ({confidence:.2f}%)" if identity != "Unknown" else "Unknown"
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+            cv2.putText(frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+
+    cv2.imshow('Frame', frame)
+    if cv2.waitKey(5) & 0xFF == 27:  # ESC key to exit
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+
